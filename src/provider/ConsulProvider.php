@@ -18,6 +18,10 @@ use rabbit\server\Server;
 use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
+/**
+ * Class ConsulProvider
+ * @package rabbit\governance\provider
+ */
 class ConsulProvider extends BaseProvider implements ProviderInterface
 {
     /**

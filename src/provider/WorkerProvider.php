@@ -9,7 +9,9 @@
 namespace rabbit\governance\provider;
 
 
+use GuzzleHttp\DefaultHandler;
 use rabbit\server\WorkerHandlerInterface;
+use Yurun\Util\Swoole\Guzzle\SwooleHandler;
 
 /**
  * Class WorkerProvider
@@ -22,7 +24,7 @@ class WorkerProvider implements WorkerHandlerInterface
      */
     public function handle(int $worker_id): void
     {
-        // TODO: Implement handle() method.
+        DefaultHandler::setDefaultHandler(SwooleHandler::class);
     }
 
 }
