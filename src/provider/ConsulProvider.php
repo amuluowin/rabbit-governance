@@ -8,9 +8,15 @@
 
 namespace rabbit\governance\provider;
 
-use Psr\Http\Message\RequestInterface;
+use GuzzleHttp\ClientInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
+use rabbit\App;
 use rabbit\core\ObjectFactory;
+use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
+use Symfony\Component\Console\Logger\ConsoleLogger;
+use Symfony\Component\Console\Output\ConsoleOutput;
 
 class ConsulProvider extends BaseProvider implements ProviderInterface
 {
@@ -52,19 +58,25 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
     private $services = [];
 
     /**
-     * @var RequestInterface
+     * @var ClientInterface
      */
     private $client;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $output;
 
     /**
      * ConsulProvider constructor.
      * @param RequestInterface $client
      * @throws \Exception
      */
-    public function __construct(RequestInterface $client)
+    public function __construct(ClientInterface $client)
     {
         $this->services = array_keys(ObjectFactory::get('rpc.services'));
         $this->client = $client;
+        $this->output = ObjectFactory::get('output', new ConsoleLogger(new ConsoleOutput()), false);
     }
 
     /**
@@ -94,21 +106,21 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
         $url = $this->getDiscoveryUrl($serviceName);
         $nodes = [];
         /**
-         * @var Response $response
+         * @var ResponseInterface $response
          */
-        $response = $this->client->get($url)->send();
-        if ($response->getIsOk()) {
-            $services = $response->getData();
+        $response = $this->client->request('GET', $url);
+        if ($response->getStatusCode() === 200) {
+            $services = $response->getBody();
             if (is_array($services)) {
                 // 数据格式化
                 foreach ($services as $service) {
                     if (!isset($service['Service'])) {
-                        Yii::warning("consul[Service] 服务健康节点集合，数据格式不不正确，Data=" . VarDumper::export($services));
+                        App::warning("consul[Service] 服务健康节点集合，数据格式不不正确，Data=" . JsonHelper::encode($services));
                         continue;
                     }
                     $serviceInfo = $service['Service'];
                     if (!isset($serviceInfo['Address'], $serviceInfo['Port'])) {
-                        Yii::warning("consul[Address] Or consul[Port] 服务健康节点集合，数据格式不不正确，Data=" . VarDumper::export($services));
+                        App::warning("consul[Address] Or consul[Port] 服务健康节点集合，数据格式不不正确，Data=" . JsonHelper::encode($services));
                         continue;
                     }
                     if (isset($service['Checks'])) {
@@ -127,10 +139,10 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
                     }
                 }
             } else {
-                Output::writeln(sprintf("can not find service %s from consul:%s:%d", $serviceName, $this->client->address, $this->client->port), Output::LIGHT_RED);
+                $this->output->warning(sprintf("can not find service %s from consul:%s:%d", $serviceName, $this->client->address, $this->client->port));
             }
         } else {
-            Output::writeln(sprintf("consul:%s:%d error,message=", $response->getContent()), Output::LIGHT_RED);
+            $this->output->warning(sprintf("consul:%s:%d error,message=", $response->getContent()));
         }
         return $nodes;
     }
@@ -170,15 +182,15 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
     private function putService(string $url): bool
     {
         /**
-         * @var Response $response
+         * @var ResponseInterface $response
          */
-        $response = Yii::$app->httpclient->put($url, $this->register)->setFormat(Client::FORMAT_JSON)->send();
+        $response = $this->client->request('PUT', $url, ['json' => $this->register]);
         $output = 'RPC register service %s %s by consul tcp=%s:%d.';
-        if ($response->getIsOk()) {
-            Output::writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']), Output::LIGHT_GREEN);
+        if ($response->getStatusCode() === 200) {
+            $this->output->info(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
             return true;
         } else {
-            Output::writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()), Output::LIGHT_RED);
+            $this->output->warning(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
             return false;
         }
     }
@@ -190,15 +202,15 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
     private function deRegisterService(string $url): bool
     {
         /**
-         * @var Response $response
+         * @var ResponseInterface $response
          */
-        $response = Yii::$app->httpclient->put($url)->setFormat(Client::FORMAT_JSON)->send();
+        $response = $this->client->request('PUT', $url);
         $output = 'RPC deregister service %s %s by consul tcp=%s:%d.';
-        if ($response->getIsOk()) {
-            Output::writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']), Output::LIGHT_GREEN);
+        if ($response->getStatusCode() === 200) {
+            $this->output->info(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
             return true;
         } else {
-            Output::writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()), Output::LIGHT_RED);
+            $this->output->warning(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
             return false;
         }
     }

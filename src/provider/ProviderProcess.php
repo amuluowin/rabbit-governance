@@ -11,7 +11,7 @@ namespace rabbit\governance\provider;
 use rabbit\core\ObjectFactory;
 use rabbit\governance\Governance;
 
-class ProviderProcess extends BaseProcess
+class ProviderProcess
 {
     /**
      * @var int

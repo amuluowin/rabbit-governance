@@ -1,21 +1,22 @@
 {
-    "name": "rabbit/governance",
-    "description": "rabbit governance",
-    "type": "library",
-    "require": {
-        "rabbit/framework": "dev-master",
-        "rabbit/rpcserver": "dev-master"
-    },
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "albert",
-            "email": "63851587@qq.com"
-        }
-    ],
-    "autoload": {
-      "psr-4": {
-        "rabbit\\governance\\": "src/"
-      }
+  "name": "rabbit/governance",
+  "description": "rabbit governance",
+  "type": "library",
+  "require": {
+    "rabbit/framework": "dev-master",
+    "rabbit/rpcserver": "dev-master",
+    "yurunsoft/guzzle-swoole": "v1.1.1"
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "albert",
+      "email": "63851587@qq.com"
     }
+  ],
+  "autoload": {
+    "psr-4": {
+      "rabbit\\governance\\": "src/"
+    }
+  }
 }
