@@ -15,8 +15,6 @@ use rabbit\App;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
-use Symfony\Component\Console\Logger\ConsoleLogger;
-use Symfony\Component\Console\Output\ConsoleOutput;
 
 /**
  * Class ConsulProvider
@@ -80,7 +78,7 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
     {
         $this->services = array_keys(ObjectFactory::get('rpc.services'));
         $this->client = $client;
-        $this->output = ObjectFactory::get('output', new ConsoleLogger(new ConsoleOutput()), false);
+        $this->output = ObjectFactory::get('output', false, App::getLogger());
     }
 
     /**

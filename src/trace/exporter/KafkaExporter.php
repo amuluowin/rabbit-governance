@@ -30,7 +30,7 @@ class KafkaExporter implements ExportInterface
         /**
          * @var Kafka $kafka
          */
-        if (($kafka = ObjectFactory::get('kafka', null, false)) !== null) {
+        if (($kafka = ObjectFactory::get('kafka', false)) !== null) {
             $kafka->send([
                 [
                     'topic' => $this->topic,

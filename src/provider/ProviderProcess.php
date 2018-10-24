@@ -23,7 +23,7 @@ class ProviderProcess
      */
     public function register()
     {
-        if (($provider = ObjectFactory::get('provider', null, false)) && !$provider->registerService()) {
+        if (($provider = ObjectFactory::get('provider', false)) && !$provider->registerService()) {
             swoole_timer_after(1000, [$this, 'register']);
         }
     }
