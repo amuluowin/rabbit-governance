@@ -8,6 +8,7 @@
 
 namespace rabbit\governance\trace;
 
+use rabbit\contract\IdGennerator;
 use rabbit\core\ObjectFactory;
 use rabbit\governance\trace\exporter\ExportInterface;
 use rabbit\helper\ArrayHelper;
@@ -22,40 +23,49 @@ class Tracer implements TraceInterface
     /**
      * @var bool
      */
-    public $isTrace = true;
+    private $isTrace = true;
 
     /**
      * @var array
      */
-    public $collect = [];
+    private $collect = [];
 
     /**
      * @var ExportInterface
      */
-    public $exporter;
+    private $exporter;
+
+    /**
+     * @var IdGennerator
+     */
+    private $idCreater;
 
     /**
      * Tracer constructor.
      * @param ExportInterface $exporter
      */
-    public function __construct(ExportInterface $exporter)
+    public function __construct(ExportInterface $exporter, IdGennerator $idCreater)
     {
         $this->exporter = $exporter;
+        $this->idCreater = $idCreater;
     }
 
     /**
-     * @param string $traceId
+     * @param int $traceId
      * @param array $collect
      * @return array
+     * @throws \Exception
      */
-    public function getCollect(string $traceId, array $collect): array
+    public function getCollect(array $collect, int $traceId = null): array
     {
+        $traceId = $traceId ?? $this->idCreater->create();
         if (isset($this->collect[$traceId])) {
             $this->collect[$traceId]['parentId'] = $this->collect[$traceId]['spanId'];
             $this->collect[$traceId]['spanId']++;
         } else {
             $this->collect[$traceId] = [
                 'traceId' => $traceId,
+                'parentId' => 0,
                 'spanId' => 0
             ];
         }
@@ -70,7 +80,7 @@ class Tracer implements TraceInterface
      * @param string $traceId
      * @param array $collect
      */
-    public function addCollect(string $traceId, array $collect): void
+    public function addCollect(int $traceId, array $collect): void
     {
         $this->collect[$traceId] = ArrayHelper::merge($this->collect[$traceId], $collect);
     }
@@ -78,7 +88,7 @@ class Tracer implements TraceInterface
     /**
      * @param string $traceId
      */
-    public function flushCollect(string $traceId): void
+    public function flushCollect(int $traceId): void
     {
         if ($this->exporter instanceof ExportInterface) {
             $this->exporter->export(JsonHelper::encode($this->collect[$traceId], JSON_UNESCAPED_UNICODE));
@@ -88,7 +98,7 @@ class Tracer implements TraceInterface
     /**
      * @param int|null $traceId
      */
-    public function release(?int $traceId = null)
+    public function release(int $traceId = null): void
     {
         if ($traceId) {
             unset($this->collect[$traceId]);

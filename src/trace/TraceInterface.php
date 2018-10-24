@@ -19,22 +19,22 @@ interface TraceInterface
      * @param array $collect
      * @return array
      */
-    public function getCollect(int $traceId,array $collect):array;
+    public function getCollect(array $collect, int $traceId = null): array;
 
     /**
      * @param int $traceId
      * @param array $collect
      * @return mixed
      */
-    public function addCollect(int $traceId, array $collect):void;
+    public function addCollect(int $traceId, array $collect): void;
 
     /**
      * @param int $traceId
      */
-    public function flushCollect(int $traceId):void;
+    public function flushCollect(int $traceId): void;
 
     /**
      * @param int|null $traceId
      */
-    public function release(?int $traceId):void;
+    public function release(int $traceId = null): void;
 }
