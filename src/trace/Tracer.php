@@ -8,11 +8,14 @@
 
 namespace rabbit\governance\trace;
 
+use Psr\Http\Message\ServerRequestInterface;
 use rabbit\contract\IdGennerator;
+use rabbit\core\Context;
 use rabbit\core\ObjectFactory;
 use rabbit\governance\trace\exporter\ExportInterface;
 use rabbit\helper\ArrayHelper;
 use rabbit\helper\JsonHelper;
+use rabbit\server\AttributeEnum;
 
 /**
  * Class Tracer
@@ -24,11 +27,6 @@ class Tracer implements TraceInterface
      * @var bool
      */
     private $isTrace = true;
-
-    /**
-     * @var array
-     */
-    private $collect = [];
 
     /**
      * @var ExportInterface
@@ -56,54 +54,51 @@ class Tracer implements TraceInterface
      * @return array
      * @throws \Exception
      */
-    public function getCollect(array $collect, int $traceId = null): array
+    public function getCollect(array $newCollect): array
     {
-        $traceId = $traceId ?? $this->idCreater->create();
-        if (isset($this->collect[$traceId])) {
-            $this->collect[$traceId]['parentId'] = $this->collect[$traceId]['spanId'];
-            $this->collect[$traceId]['spanId']++;
-        } else {
-            $this->collect[$traceId] = [
-                'traceId' => $traceId,
+        /** @var ServerRequestInterface $request */
+        $request = Context::get('request');
+        if (($collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE)) === null) {
+            $collect = [
+                'traceId' => $this->idCreater->create(),
                 'parentId' => 0,
                 'spanId' => 0
             ];
+        } else {
+            $collect['parentId'] = $collect['spanId'];
+            $collect['spanId']++;
         }
-        $this->collect[$traceId]['time'] = time();
-        $this->collect[$traceId]['host'] = ObjectFactory::get('rpc.host');
-        $this->collect[$traceId]['port'] = 80;
-        $this->collect[$traceId] = ArrayHelper::merge($this->collect[$traceId], $collect);
-        return $this->collect[$traceId];
+        $collect['time'] = time();
+        $collect['host'] = ObjectFactory::get('rpc.host');
+        $collect['port'] = 80;
+        $collect = ArrayHelper::merge($collect, $newCollect);
+        $request->withAttribute(AttributeEnum::TRACE_ATTRIBUTE, $collect);
+        return $collect;
     }
 
     /**
      * @param string $traceId
      * @param array $collect
      */
-    public function addCollect(int $traceId, array $collect): void
+    public function addCollect(array $newCollect): void
     {
-        $this->collect[$traceId] = ArrayHelper::merge($this->collect[$traceId], $collect);
+        /** @var ServerRequestInterface $request */
+        $request = Context::get('request');
+        $collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE);
+        $collect = ArrayHelper::merge($collect, $newCollect);
+        $request->withAttribute(AttributeEnum::TRACE_ATTRIBUTE, $collect);
     }
 
     /**
      * @param string $traceId
      */
-    public function flushCollect(int $traceId): void
+    public function flushCollect(): void
     {
         if ($this->exporter instanceof ExportInterface) {
-            $this->exporter->export(JsonHelper::encode($this->collect[$traceId], JSON_UNESCAPED_UNICODE));
-        }
-    }
-
-    /**
-     * @param int|null $traceId
-     */
-    public function release(int $traceId = null): void
-    {
-        if ($traceId) {
-            unset($this->collect[$traceId]);
-        } else {
-            $this->collect = [];
+            /** @var ServerRequestInterface $request */
+            $request = Context::get('request');
+            $collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE);
+            $this->exporter->export(JsonHelper::encode($collect, JSON_UNESCAPED_UNICODE));
         }
     }
 }
