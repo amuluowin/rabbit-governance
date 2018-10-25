@@ -8,11 +8,13 @@
 
 namespace rabbit\governance\provider;
 
+use rabbit\core\ObjectFactory;
+
 /**
  * Class BaseProvider
  * @package rabbit\governance\provider
  */
-class BaseProvider
+trait ProviderTrait
 {
     /**
      * @var int
@@ -23,15 +25,6 @@ class BaseProvider
      * @var
      */
     private $cache;
-
-    /**
-     * BaseProvider constructor.
-     * @param $cache
-     */
-    public function __construct($cache)
-    {
-        $this->cache = $cache;
-    }
 
     /**
      * @param string $service

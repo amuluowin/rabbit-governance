@@ -20,8 +20,9 @@ use rabbit\server\Server;
  * Class ConsulProvider
  * @package rabbit\governance\provider
  */
-class ConsulProvider extends BaseProvider implements ProviderInterface
+class ConsulProvider implements ProviderInterface
 {
+    use ProviderTrait;
     /**
      * Register path
      */
@@ -43,11 +44,6 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
      * @var array
      */
     private $discovery;
-
-    /**
-     * @var int
-     */
-    private $checkType = 1;
 
     /**
      * @var string
@@ -79,6 +75,7 @@ class ConsulProvider extends BaseProvider implements ProviderInterface
         $this->services = array_keys(ObjectFactory::get('rpc.services'));
         $this->client = $client;
         $this->output = ObjectFactory::get('output', false, App::getLogger());
+        $this->cache = ObjectFactory::get('cache');
     }
 
     /**
