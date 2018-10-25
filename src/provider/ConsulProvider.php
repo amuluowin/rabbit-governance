@@ -10,11 +10,11 @@ namespace rabbit\governance\provider;
 
 use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\LoggerInterface;
 use rabbit\App;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class ConsulProvider
@@ -61,9 +61,18 @@ class ConsulProvider implements ProviderInterface
     private $client;
 
     /**
-     * @var LoggerInterface
+     * @var OutputInterface
      */
     private $output;
+    /**
+     * @var string
+     */
+    private $address = "http://consul";
+
+    /**
+     * @var int
+     */
+    private $port = 8500;
 
     /**
      * ConsulProvider constructor.
@@ -130,7 +139,7 @@ class ConsulProvider implements ProviderInterface
                                     $port = $serviceInfo['Port'];
                                     $nodes[] = [$address, $port];
                                 } else {
-                                    $url = sprintf('%s:%d%s%s', $this->client->address, $this->client->port, self::DEREGISTER_PATH, $check['ServiceID']);
+                                    $url = sprintf('%s:%d%s%s', $this->address, $this->port, self::DEREGISTER_PATH, $check['ServiceID']);
                                     $this->deRegisterService($url);
                                 }
                             }
@@ -138,10 +147,10 @@ class ConsulProvider implements ProviderInterface
                     }
                 }
             } else {
-                $this->output->warning(sprintf("can not find service %s from consul:%s:%d", $serviceName, $this->client->address, $this->client->port));
+                $this->output->writeln(sprintf("can not find service %s from consul:%s:%d", $serviceName, $this->address, $this->port));
             }
         } else {
-            $this->output->warning(sprintf("consul:%s:%d error,message=", $response->getContent()));
+            $this->output->writeln(sprintf("consul:%s:%d error,message=", $response->getContent()));
         }
         return $nodes;
     }
@@ -151,7 +160,7 @@ class ConsulProvider implements ProviderInterface
      */
     public function registerService(): bool
     {
-        $url = sprintf('%s:%d%s', $this->client->address, $this->client->port, self::REGISTER_PATH);
+        $url = sprintf('%s:%d%s', $this->address, $this->port, self::REGISTER_PATH);
         $result = true;
         /**
          * @var Server $rpcserver
@@ -186,10 +195,10 @@ class ConsulProvider implements ProviderInterface
         $response = $this->client->request('PUT', $url, ['json' => $this->register]);
         $output = 'RPC register service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
-            $this->output->info(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
+            $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
             return true;
         } else {
-            $this->output->warning(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
+            $this->output->writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
             return false;
         }
     }
@@ -206,10 +215,10 @@ class ConsulProvider implements ProviderInterface
         $response = $this->client->request('PUT', $url);
         $output = 'RPC deregister service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
-            $this->output->info(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
+            $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
             return true;
         } else {
-            $this->output->warning(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
+            $this->output->writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
             return false;
         }
     }
@@ -235,6 +244,6 @@ class ConsulProvider implements ProviderInterface
         $queryStr = http_build_query($query);
         $path = sprintf('%s%s', self::DISCOVERY_PATH, $serviceName);
 
-        return sprintf('%s:%d%s?%s', $this->client->address, $this->client->port, $path, $queryStr);
+        return sprintf('%s:%d%s?%s', $this->address, $this->port, $path, $queryStr);
     }
 }

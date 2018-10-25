@@ -8,8 +8,6 @@
 
 namespace rabbit\governance\provider;
 
-use rabbit\core\ObjectFactory;
-
 /**
  * Class BaseProvider
  * @package rabbit\governance\provider

@@ -5,7 +5,8 @@
   "require": {
     "rabbit/framework": "dev-master",
     "rabbit/rpcserver": "dev-master",
-    "yurunsoft/guzzle-swoole": "v1.1.1"
+    "yurunsoft/guzzle-swoole": "v1.1.1",
+    "guzzlehttp/guzzle": "6.3.3"
   },
   "license": "MIT",
   "authors": [
