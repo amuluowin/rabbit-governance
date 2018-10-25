@@ -9,22 +9,36 @@
 namespace rabbit\governance\provider;
 
 use rabbit\core\ObjectFactory;
+use rabbit\core\Timer;
 use rabbit\governance\Governance;
+use rabbit\process\AbstractProcess;
+use rabbit\process\Process;
 
-class ProviderProcess
+class ProviderProcess extends AbstractProcess
 {
     /**
      * @var int
      */
-    private $ticket = 10;
+    private $ticket = 1;
+
+    public function run(Process $process): void
+    {
+        $this->register();
+    }
 
     /**
      *
      */
     public function register()
     {
+        /** @var ProviderInterface $provider */
         if (($provider = ObjectFactory::get('provider', false)) && !$provider->registerService()) {
-            swoole_timer_after(1000, [$this, 'register']);
+            /** @var Timer $timer */
+            if (($timer = ObjectFactory::get('timer', false)) !== null) {
+                $timer->addAfterTimer('consul', $this->ticket * 1000, [$this, 'register']);
+            } else {
+                swoole_timer_after($this->ticket * 1000, [$this, 'register']);
+            }
         }
     }
 }
