@@ -46,11 +46,6 @@ class ConsulProvider implements ProviderInterface
     private $discovery;
 
     /**
-     * @var string
-     */
-    private $servicePrefix = 'service-';
-
-    /**
      * @var array
      */
     private $services = [];
@@ -84,7 +79,6 @@ class ConsulProvider implements ProviderInterface
         $this->services = array_keys(ObjectFactory::get('rpc.services'));
         $this->client = $client;
         $this->output = ObjectFactory::get('output', false, App::getLogger());
-        $this->cache = ObjectFactory::get('cache');
     }
 
     /**
@@ -94,14 +88,16 @@ class ConsulProvider implements ProviderInterface
      */
     public function getServices(string $serviceName): array
     {
-        $nodes = $this->getServiceFromCache($serviceName);
-        if ($nodes) {
-            return $nodes;
+        if ($this->cache) {
+            $nodes = $this->getServiceFromCache($serviceName);
+            if (!$nodes) {
+                $nodes = $this->get($serviceName);
+                $this->setServiceToCache([$serviceName => $nodes]);
+            }
         } else {
-            $nodes = $this->get($serviceName, $preFix);
-            $this->setServiceToCache([$serviceName => $nodes]);
-            return $nodes;
+            $nodes = $this->get($serviceName);
         }
+        return $nodes;
     }
 
     /**
@@ -118,8 +114,8 @@ class ConsulProvider implements ProviderInterface
          */
         $response = $this->client->request('GET', $url);
         if ($response->getStatusCode() === 200) {
-            $services = $response->getBody();
-            if (is_array($services)) {
+            $services = $response->getBody()->getContents();
+            if ($services = JsonHelper::decode($services, true)) {
                 // 数据格式化
                 foreach ($services as $service) {
                     if (!isset($service['Service'])) {
@@ -133,11 +129,11 @@ class ConsulProvider implements ProviderInterface
                     }
                     if (isset($service['Checks'])) {
                         foreach ($service['Checks'] as $check) {
-                            if ($check['ServiceName'] === $preFix . $serviceName) {
+                            if ($check['ServiceName'] === $serviceName) {
                                 if ($check['Status'] === 'passing') {
                                     $address = $serviceInfo['Address'];
                                     $port = $serviceInfo['Port'];
-                                    $nodes[] = [$address, $port];
+                                    $nodes[] = $address . ":" . $port;
                                 } else {
                                     $url = sprintf('%s:%d%s%s', $this->address, $this->port, self::DEREGISTER_PATH, $check['ServiceID']);
                                     $this->deRegisterService($url);
@@ -169,7 +165,6 @@ class ConsulProvider implements ProviderInterface
         $rpchost = ObjectFactory::get('rpc.host');
         $appName = ObjectFactory::get('appName');
         foreach ($this->services as $service) {
-            $service = $this->servicePrefix . $service;
             $id = sprintf('%s-%s-%s', $appName, $service, $rpchost);
             $this->register['ID'] = $id;
             $this->register['Name'] = $service;
@@ -228,9 +223,8 @@ class ConsulProvider implements ProviderInterface
      * @param string $preFix
      * @return string
      */
-    private function getDiscoveryUrl(string $serviceName, string $preFix): string
+    private function getDiscoveryUrl(string $serviceName): string
     {
-        $serviceName = $preFix . $serviceName;
         $query = array_filter([
             'passing' => $this->discovery['passing'],
             'dc' => $this->discovery['dc'],
