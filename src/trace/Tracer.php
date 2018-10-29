@@ -68,7 +68,7 @@ class Tracer implements TraceInterface
             $collect['parentId'] = $collect['spanId'];
             $collect['spanId']++;
         }
-        $collect['time'] = time();
+        $collect['sendTime'] = floor(microtime(true) * 1000);
         $collect['host'] = ObjectFactory::get('rpc.host');
         $collect['port'] = 80;
         $collect = ArrayHelper::merge($collect, $newCollect);
