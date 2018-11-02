@@ -8,12 +8,12 @@
 
 namespace rabbit\governance\provider;
 
-use GuzzleHttp\ClientInterface;
-use Psr\Http\Message\ResponseInterface;
 use rabbit\App;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
+use Swlib\Http\ContentType;
+use Swlib\Saber;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -51,7 +51,7 @@ class ConsulProvider implements ProviderInterface
     private $services = [];
 
     /**
-     * @var ClientInterface
+     * @var Saber
      */
     private $client;
 
@@ -74,10 +74,9 @@ class ConsulProvider implements ProviderInterface
      * @param RequestInterface $client
      * @throws \Exception
      */
-    public function __construct(ClientInterface $client)
+    public function __construct()
     {
         $this->services = array_keys(ObjectFactory::get('rpc.services'));
-        $this->client = $client;
         $this->output = ObjectFactory::get('output', false, App::getLogger());
     }
 
@@ -110,12 +109,12 @@ class ConsulProvider implements ProviderInterface
         $url = $this->getDiscoveryUrl($serviceName);
         $nodes = [];
         /**
-         * @var ResponseInterface $response
+         * @var Saber\Response $response
          */
-        $response = $this->client->request('GET', $url);
+        $response = $this->client->get($url);
         if ($response->getStatusCode() === 200) {
-            $services = $response->getBody()->getContents();
-            if ($services = JsonHelper::decode($services, true)) {
+            $services = $response->getParsedJsonArray();
+            if ($services) {
                 // 数据格式化
                 foreach ($services as $service) {
                     if (!isset($service['Service'])) {
@@ -185,9 +184,9 @@ class ConsulProvider implements ProviderInterface
     private function putService(string $url): bool
     {
         /**
-         * @var ResponseInterface $response
+         * @var Saber\Response $response
          */
-        $response = $this->client->request('PUT', $url, ['json' => $this->register]);
+        $response = $this->client->put($url, $this->register);
         $output = 'RPC register service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
             $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
@@ -205,9 +204,9 @@ class ConsulProvider implements ProviderInterface
     private function deRegisterService(string $url): bool
     {
         /**
-         * @var ResponseInterface $response
+         * @var Saber\Response $response
          */
-        $response = $this->client->request('PUT', $url);
+        $response = $this->client->put($url);
         $output = 'RPC deregister service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
             $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
