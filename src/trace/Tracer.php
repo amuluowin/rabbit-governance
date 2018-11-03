@@ -9,6 +9,7 @@
 namespace rabbit\governance\trace;
 
 use rabbit\contract\IdGennerator;
+use rabbit\core\Context;
 use rabbit\core\ObjectFactory;
 use rabbit\governance\trace\exporter\ExportInterface;
 use rabbit\helper\ArrayHelper;
@@ -53,7 +54,7 @@ class Tracer implements TraceInterface
      */
     public function getCollect(array $newCollect): array
     {
-        if (($collect = TracerContext::get('collect')) === null) {
+        if (($collect = Context::get('collect')) === null) {
             $collect = [
                 'traceId' => $this->idCreater->create(),
                 'parentId' => 0,
@@ -67,7 +68,7 @@ class Tracer implements TraceInterface
         $collect['host'] = ObjectFactory::get('rpc.host');
         $collect['port'] = 80;
         $collect = ArrayHelper::merge($collect, $newCollect);
-        TracerContext::set('collect', $collect);
+        Context::set('collect', $collect);
         return $collect;
     }
 
@@ -77,9 +78,9 @@ class Tracer implements TraceInterface
      */
     public function addCollect(array $newCollect): void
     {
-        $collect = TracerContext::get('collect');
+        $collect = Context::get('collect');
         $collect = ArrayHelper::merge($collect, $newCollect);
-        TracerContext::set('collect', $collect);
+        Context::set('collect', $collect);
     }
 
     /**
@@ -88,9 +89,9 @@ class Tracer implements TraceInterface
     public function flushCollect(): void
     {
         if ($this->exporter instanceof ExportInterface) {
-            $collect = TracerContext::get('collect');
+            $collect = Context::get('collect');
             $this->exporter->export(JsonHelper::encode($collect, JSON_UNESCAPED_UNICODE));
-            TracerContext::release();
+            Context::release();
         }
     }
 }
