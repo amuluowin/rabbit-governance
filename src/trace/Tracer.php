@@ -8,14 +8,11 @@
 
 namespace rabbit\governance\trace;
 
-use Psr\Http\Message\ServerRequestInterface;
 use rabbit\contract\IdGennerator;
-use rabbit\core\Context;
 use rabbit\core\ObjectFactory;
 use rabbit\governance\trace\exporter\ExportInterface;
 use rabbit\helper\ArrayHelper;
 use rabbit\helper\JsonHelper;
-use rabbit\server\AttributeEnum;
 
 /**
  * Class Tracer
@@ -56,9 +53,7 @@ class Tracer implements TraceInterface
      */
     public function getCollect(array $newCollect): array
     {
-        /** @var ServerRequestInterface $request */
-        $request = Context::get('request');
-        if (($collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE)) === null) {
+        if (($collect = TracerContext::get('collect')) === null) {
             $collect = [
                 'traceId' => $this->idCreater->create(),
                 'parentId' => 0,
@@ -72,7 +67,7 @@ class Tracer implements TraceInterface
         $collect['host'] = ObjectFactory::get('rpc.host');
         $collect['port'] = 80;
         $collect = ArrayHelper::merge($collect, $newCollect);
-        $request->withAttribute(AttributeEnum::TRACE_ATTRIBUTE, $collect);
+        TracerContext::set('collect', $collect);
         return $collect;
     }
 
@@ -82,11 +77,9 @@ class Tracer implements TraceInterface
      */
     public function addCollect(array $newCollect): void
     {
-        /** @var ServerRequestInterface $request */
-        $request = Context::get('request');
-        $collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE);
+        $collect = TracerContext::get('collect');
         $collect = ArrayHelper::merge($collect, $newCollect);
-        $request->withAttribute(AttributeEnum::TRACE_ATTRIBUTE, $collect);
+        TracerContext::set('collect', $collect);
     }
 
     /**
@@ -95,10 +88,9 @@ class Tracer implements TraceInterface
     public function flushCollect(): void
     {
         if ($this->exporter instanceof ExportInterface) {
-            /** @var ServerRequestInterface $request */
-            $request = Context::get('request');
-            $collect = $request->getAttribute(AttributeEnum::TRACE_ATTRIBUTE);
+            $collect = TracerContext::get('collect');
             $this->exporter->export(JsonHelper::encode($collect, JSON_UNESCAPED_UNICODE));
+            TracerContext::release();
         }
     }
 }

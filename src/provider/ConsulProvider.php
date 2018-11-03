@@ -12,7 +12,6 @@ use rabbit\App;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
-use Swlib\Http\ContentType;
 use Swlib\Saber;
 use Symfony\Component\Console\Output\OutputInterface;
 
