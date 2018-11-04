@@ -9,8 +9,13 @@
 namespace rabbit\governance\provider;
 
 use rabbit\App;
+use rabbit\consul\ConsulResponse;
+use rabbit\consul\ServiceFactory;
+use rabbit\consul\Services\AgentInterface;
+use rabbit\consul\Services\HealthInterface;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
+use rabbit\httpclient\ClientInterface;
 use rabbit\server\Server;
 use Swlib\Saber;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -22,17 +27,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ConsulProvider implements ProviderInterface
 {
     use ProviderTrait;
-    /**
-     * Register path
-     */
-    const REGISTER_PATH = '/v1/agent/service/register';
-
-    /**
-     * Discovery path
-     */
-    const DISCOVERY_PATH = '/v1/health/service/';
-
-    const DEREGISTER_PATH = '/v1/agent/service/deregister/';
 
     /**
      * @var array
@@ -50,9 +44,9 @@ class ConsulProvider implements ProviderInterface
     private $services = [];
 
     /**
-     * @var Saber
+     * @var ServiceFactory
      */
-    private $client;
+    private $factory;
 
     /**
      * @var OutputInterface
@@ -65,7 +59,6 @@ class ConsulProvider implements ProviderInterface
 
     /**
      * ConsulProvider constructor.
-     * @param RequestInterface $client
      * @throws \Exception
      */
     public function __construct()
@@ -100,14 +93,21 @@ class ConsulProvider implements ProviderInterface
      */
     private function get(string $serviceName)
     {
-        $url = $this->getDiscoveryUrl($serviceName);
+        $query = array_filter([
+            'passing' => $this->discovery['passing'],
+            'dc' => $this->discovery['dc'],
+            'near' => $this->discovery['near'],
+        ]);
+
+        if (!empty($this->register['Tags'])) {
+            $query['tag'] = $this->register['Tags'];
+        }
+        /** @var HealthInterface $health */
+        $health = $this->factory->get('health');
+        $response = $health->service($serviceName, $query);
         $nodes = [];
-        /**
-         * @var Saber\Response $response
-         */
-        $response = $this->client->get($url);
         if ($response->getStatusCode() === 200) {
-            $services = $response->getParsedJsonArray();
+            $services = $response->json();
             if ($services) {
                 // 数据格式化
                 foreach ($services as $service) {
@@ -128,8 +128,7 @@ class ConsulProvider implements ProviderInterface
                                     $port = $serviceInfo['Port'];
                                     $nodes[] = $address . ":" . $port;
                                 } else {
-                                    $url = sprintf('%s%s%s', $this->address, self::DEREGISTER_PATH, $check['ServiceID']);
-                                    $this->deRegisterService($url);
+                                    $this->deRegisterService($check['ServiceID']);
                                 }
                             }
                         }
@@ -149,7 +148,6 @@ class ConsulProvider implements ProviderInterface
      */
     public function registerService(): bool
     {
-        $url = sprintf('%s%s', $this->address, self::REGISTER_PATH);
         $result = true;
         /**
          * @var Server $rpcserver
@@ -158,14 +156,15 @@ class ConsulProvider implements ProviderInterface
         $rpchost = ObjectFactory::get('rpc.host');
         $appName = ObjectFactory::get('appName');
         foreach ($this->services as $service) {
+            $register = $this->register;
             $id = sprintf('%s-%s-%s', $appName, $service, $rpchost);
-            $this->register['ID'] = $id;
-            $this->register['Name'] = $service;
-            $this->register['Port'] = $rpcserver->getPort();
-            $this->register['Check']['id'] = $id;
-            $this->register['Check']['tcp'] = sprintf('%s:%d', $rpchost, $rpcserver->getPort());
-            $this->register['Check']['name'] = $service;
-            $result &= $this->putService($url);
+            $register['ID'] = $id;
+            $register['Name'] = $service;
+            $register['Port'] = $rpcserver->getPort();
+            $register['Check']['id'] = $id;
+            $register['Check']['tcp'] = sprintf('%s:%d', $rpchost, $rpcserver->getPort());
+            $register['Check']['name'] = $service;
+            $result &= $this->putService($register);
         }
 
         return $result;
@@ -175,18 +174,20 @@ class ConsulProvider implements ProviderInterface
      * @param string $url
      * @return bool
      */
-    private function putService(string $url): bool
+    private function putService(array $register): bool
     {
         /**
-         * @var Saber\Response $response
+         * @var AgentInterface $agent
          */
-        $response = $this->client->put($url, $this->register);
+        $agent = $this->factory->get('agent');
+        /** @var ConsulResponse $response */
+        $response = $agent->registerService($register);
         $output = 'RPC register service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
-            $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
+            $this->output->writeln(sprintf($output, $register['Name'], 'success', $register['Address'], $register['Port']));
             return true;
         } else {
-            $this->output->writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
+            $this->output->writeln(sprintf($output . 'error=%s', $register['Name'], 'failed', $register['Address'], $register['Port'], $response->getBody()));
             return false;
         }
     }
@@ -195,42 +196,19 @@ class ConsulProvider implements ProviderInterface
      * @param string $url
      * @return bool
      */
-    private function deRegisterService(string $url): bool
+    private function deRegisterService(string $id): bool
     {
-        /**
-         * @var Saber\Response $response
-         */
-        $response = $this->client->put($url);
+        /** @var AgentInterface $agent */
+        $agent = $this->factory->get('agent');
+        /** @var ConsulResponse $response */
+        $response = $agent->deregisterService($id);
         $output = 'RPC deregister service %s %s by consul tcp=%s:%d.';
         if ($response->getStatusCode() === 200) {
-            $this->output->writeln(sprintf($output, $this->register['Name'], 'success', $this->register['Address'], $this->register['Port']));
+            $this->output->writeln(sprintf($output, $id, 'success', $this->register['Address'], $this->register['Port']));
             return true;
         } else {
-            $this->output->writeln(sprintf($output . 'error=%s', $this->register['Name'], 'failed', $this->register['Address'], $this->register['Port'], $response->getContent()));
+            $this->output->writeln(sprintf($output . 'error=%s', $id, 'failed', $this->register['Address'], $this->register['Port'], $response->getBody()));
             return false;
         }
-    }
-
-    /**
-     * @param string $serviceName
-     * @param string $preFix
-     * @return string
-     */
-    private function getDiscoveryUrl(string $serviceName): string
-    {
-        $query = array_filter([
-            'passing' => $this->discovery['passing'],
-            'dc' => $this->discovery['dc'],
-            'near' => $this->discovery['near'],
-        ]);
-
-        if (!empty($this->register['Tags'])) {
-            $query['tag'] = $this->register['Tags'];
-        }
-
-        $queryStr = http_build_query($query);
-        $path = sprintf('%s%s', self::DISCOVERY_PATH, $serviceName);
-
-        return sprintf('%s%s?%s', $this->address, $path, $queryStr);
     }
 }
