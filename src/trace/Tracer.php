@@ -91,7 +91,7 @@ class Tracer implements TraceInterface
         if ($this->exporter instanceof ExportInterface) {
             $collect = Context::get('collect');
             $this->exporter->export(JsonHelper::encode($collect, JSON_UNESCAPED_UNICODE));
-            Context::release();
+            Context::delete('collect');
         }
     }
 }
