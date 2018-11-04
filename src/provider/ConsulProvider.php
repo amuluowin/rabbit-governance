@@ -61,12 +61,7 @@ class ConsulProvider implements ProviderInterface
     /**
      * @var string
      */
-    private $address = "http://consul";
-
-    /**
-     * @var int
-     */
-    private $port = 8500;
+    private $address = "http://consul:8500";
 
     /**
      * ConsulProvider constructor.
@@ -133,7 +128,7 @@ class ConsulProvider implements ProviderInterface
                                     $port = $serviceInfo['Port'];
                                     $nodes[] = $address . ":" . $port;
                                 } else {
-                                    $url = sprintf('%s:%d%s%s', $this->address, $this->port, self::DEREGISTER_PATH, $check['ServiceID']);
+                                    $url = sprintf('%s%s%s', $this->address, self::DEREGISTER_PATH, $check['ServiceID']);
                                     $this->deRegisterService($url);
                                 }
                             }
@@ -141,7 +136,7 @@ class ConsulProvider implements ProviderInterface
                     }
                 }
             } else {
-                $this->output->writeln(sprintf("can not find service %s from consul:%s:%d", $serviceName, $this->address, $this->port));
+                $this->output->writeln(sprintf("can not find service %s from consul:%s", $serviceName, $this->address));
             }
         } else {
             $this->output->writeln(sprintf("consul:%s:%d error,message=", $response->getContent()));
@@ -154,7 +149,7 @@ class ConsulProvider implements ProviderInterface
      */
     public function registerService(): bool
     {
-        $url = sprintf('%s:%d%s', $this->address, $this->port, self::REGISTER_PATH);
+        $url = sprintf('%s%s', $this->address, self::REGISTER_PATH);
         $result = true;
         /**
          * @var Server $rpcserver
@@ -236,6 +231,6 @@ class ConsulProvider implements ProviderInterface
         $queryStr = http_build_query($query);
         $path = sprintf('%s%s', self::DISCOVERY_PATH, $serviceName);
 
-        return sprintf('%s:%d%s?%s', $this->address, $this->port, $path, $queryStr);
+        return sprintf('%s%s?%s', $this->address, $path, $queryStr);
     }
 }
