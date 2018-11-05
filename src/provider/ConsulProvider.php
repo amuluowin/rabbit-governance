@@ -11,8 +11,8 @@ namespace rabbit\governance\provider;
 use rabbit\App;
 use rabbit\consul\ConsulResponse;
 use rabbit\consul\ServiceFactory;
-use rabbit\consul\Services\AgentInterface;
-use rabbit\consul\Services\HealthInterface;
+use rabbit\consul\Services\Agent;
+use rabbit\consul\Services\Health;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
@@ -100,7 +100,7 @@ class ConsulProvider implements ProviderInterface
         if (!empty($this->register['Tags'])) {
             $query['tag'] = $this->register['Tags'];
         }
-        /** @var HealthInterface $health */
+        /** @var Health $health */
         $health = $this->factory->get('health');
         /** @var ConsulResponse $response */
         $response = $health->service($serviceName, $query);
@@ -176,7 +176,7 @@ class ConsulProvider implements ProviderInterface
     private function putService(array $register): bool
     {
         /**
-         * @var AgentInterface $agent
+         * @var Agent $agent
          */
         $agent = $this->factory->get('agent');
         /** @var ConsulResponse $response */
@@ -197,7 +197,7 @@ class ConsulProvider implements ProviderInterface
      */
     private function deRegisterService(string $id): bool
     {
-        /** @var AgentInterface $agent */
+        /** @var Agent $agent */
         $agent = $this->factory->get('agent');
         /** @var ConsulResponse $response */
         $response = $agent->deregisterService($id);
