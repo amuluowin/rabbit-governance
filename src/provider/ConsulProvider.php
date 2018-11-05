@@ -15,9 +15,7 @@ use rabbit\consul\Services\AgentInterface;
 use rabbit\consul\Services\HealthInterface;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
-use rabbit\httpclient\ClientInterface;
 use rabbit\server\Server;
-use Swlib\Saber;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -104,6 +102,7 @@ class ConsulProvider implements ProviderInterface
         }
         /** @var HealthInterface $health */
         $health = $this->factory->get('health');
+        /** @var ConsulResponse $response */
         $response = $health->service($serviceName, $query);
         $nodes = [];
         if ($response->getStatusCode() === 200) {
@@ -160,7 +159,7 @@ class ConsulProvider implements ProviderInterface
             $id = sprintf('%s-%s-%s', $appName, $service, $rpchost);
             $register['ID'] = $id;
             $register['Name'] = $service;
-            $register['Port'] = $rpcserver->getPort();
+            $this->register['Port'] = $register['Port'] = $rpcserver->getPort();
             $register['Check']['id'] = $id;
             $register['Check']['tcp'] = sprintf('%s:%d', $rpchost, $rpcserver->getPort());
             $register['Check']['name'] = $service;
