@@ -22,7 +22,7 @@ trait ProviderTrait
     /**
      * @var
      */
-    private $cache;
+    private $cache = [];
 
     /**
      * @param string $service
@@ -30,8 +30,15 @@ trait ProviderTrait
      */
     public function getServiceFromCache(string $service): array
     {
-        $result = $this->cache->get($service);
-        return is_array($result) ? $result : [];
+        if (isset($this->cache[$service])) {
+            list($node, $expire) = $this->cache[$service];
+            if (time() < $expire) {
+                return $node;
+            } else {
+                $this->delService($service);
+            }
+        }
+        return [];
     }
 
     /**
@@ -42,18 +49,18 @@ trait ProviderTrait
     {
         if ($services && is_array($services)) {
             foreach ($services as $service => $node) {
-                $this->cache->set($service, $node, $this->duration);
+                $this->cache[$service] = [$node, time() + $this->duration];
             }
         }
     }
 
     /**
      * @param string $service
-     * @return bool
-     * @throws \Exception
      */
-    public function delService(string $service): bool
+    public function delService(string $service): void
     {
-        return $this->cache->delete($service);
+        if (isset($this->cache[$service])) {
+            unset($this->cache[$service]);
+        }
     }
 }
