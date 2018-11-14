@@ -16,7 +16,6 @@ use rabbit\consul\Services\Health;
 use rabbit\core\ObjectFactory;
 use rabbit\helper\JsonHelper;
 use rabbit\server\Server;
-use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class ConsulProvider
