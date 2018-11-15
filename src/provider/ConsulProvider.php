@@ -174,12 +174,12 @@ class ConsulProvider implements ProviderInterface
         $agent = $this->factory->get('agent');
         /** @var ConsulResponse $response */
         $response = $agent->registerService($register);
-        $output = 'RPC register service %s %s by consul tcp=%s:%d.';
+        $output = 'RPC register service %s %s by consul.';
         if ($response->getStatusCode() === 200) {
-            App::info(sprintf($output, $register['Name'], 'success', $register['Address'], $register['Port']), 'consul');
+            App::info(sprintf($output, $register['Name'], 'success'), 'consul');
             return true;
         } else {
-            App::error(sprintf($output . 'error=%s', $register['Name'], 'failed', $register['Address'], $register['Port'], $response->getBody()), 'consul');
+            App::error(sprintf($output . 'error=%s', $register['Name'], 'failed', $response->getBody()), 'consul');
             return false;
         }
     }
@@ -194,12 +194,12 @@ class ConsulProvider implements ProviderInterface
         $agent = $this->factory->get('agent');
         /** @var ConsulResponse $response */
         $response = $agent->deregisterService($id);
-        $output = 'RPC deregister service %s %s by consul tcp=%s:%d.';
+        $output = 'RPC deregister service %s %s by consul.';
         if ($response->getStatusCode() === 200) {
-            App::info(sprintf($output, $id, 'success', $this->register['Address'], $this->register['Port']), 'consul');
+            App::info(sprintf($output, $id, 'success'), 'consul');
             return true;
         } else {
-            App::error($this->output->writeln(sprintf($output . 'error=%s', $id, 'failed', $this->register['Address'], $this->register['Port'], $response->getBody())), 'consul');
+            App::error($this->output->writeln(sprintf($output . 'error=%s', $id, 'failed', $response->getBody())), 'consul');
             return false;
         }
     }
